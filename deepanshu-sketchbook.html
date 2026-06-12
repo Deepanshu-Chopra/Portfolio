@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Deepanshu's Sketchbook — a walkable portfolio</title>
+<style>
+  :root{
+    --ink:#2b2b33;
+    --paper:#fdfbf4;
+    --pencil:#8a8a96;
+    --red:#e2574c;
+    --blue:#4a7fd4;
+    --yellow:#f2c14e;
+    --green:#5fa463;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:var(--paper);}
+  body{font-family:'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE',cursive;color:var(--ink);-webkit-font-smoothing:antialiased;}
+  #scene{position:fixed;inset:0;display:block;cursor:crosshair;}
+
+  .sketchy{
+    background:var(--paper);
+    border:2.5px solid var(--ink);
+    border-radius:255px 15px 225px 15px/15px 225px 15px 255px;
+    box-shadow:3px 4px 0 rgba(43,43,51,.18);
+  }
+
+  /* ---------- intro splash ---------- */
+  #splash{
+    position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:18px;background:var(--paper);
+    transition:opacity .7s ease, visibility .7s;text-align:center;padding:20px;
+    background-image:radial-gradient(rgba(43,43,51,.05) 1px, transparent 1.5px);
+    background-size:26px 26px;
+  }
+  #splash.gone{opacity:0;visibility:hidden;pointer-events:none;}
+  #splash h1{font-size:clamp(26px,5.5vw,52px);transform:rotate(-2deg);}
+  #splash h1 em{font-style:normal;color:var(--red);text-decoration:underline wavy var(--yellow) 3px;}
+  #splash .sub{font-size:clamp(15px,2.6vw,21px);color:var(--blue);transform:rotate(.6deg);}
+  #splash p{font-size:clamp(13px,2.2vw,17px);color:var(--pencil);transform:rotate(-.5deg);max-width:40ch;}
+  #enterBtn{
+    font-family:inherit;font-size:clamp(16px,2.6vw,22px);padding:12px 34px;cursor:pointer;
+    color:var(--ink);transform:rotate(1.5deg);transition:transform .15s;
+  }
+  #enterBtn:hover,#enterBtn:focus-visible{transform:rotate(-1.5deg) scale(1.06);outline:3px dashed var(--blue);outline-offset:4px;}
+  #splashDoodle{width:110px;height:110px;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;}
+  #hint{
+    position:absolute;bottom:18px;left:50%;transform:translateX(-50%) rotate(-1deg);
+    padding:8px 18px;font-size:14px;opacity:.92;transition:opacity .6s;white-space:nowrap;
+  }
+  #hint.gone{opacity:0;}
+  #secretCount{
+    position:absolute;top:14px;right:14px;padding:8px 14px;font-size:14px;
+    transform:rotate(1.5deg);transition:transform .2s;
+  }
+  #secretCount.pop{transform:rotate(-4deg) scale(1.25);}
+  #depthWrap{
+    position:absolute;top:0;left:0;right:0;height:34px;display:flex;align-items:center;
+    padding:0 14px;gap:8px;
+  }
+  #depthLine{flex:0 0 auto;height:3px;background:var(--ink);border-radius:3px;width:0%;
+    max-width:calc(100% - 250px);transition:width .1s linear;opacity:.85;}
+  #pencil{font-size:20px;transform:rotate(35deg) translateY(-2px);}
+  #depthLabel{font-size:12px;color:var(--pencil);white-space:nowrap;}
+
+  /* ---------- guide speech bubble ---------- */
+  #bubble{
+    position:fixed;z-index:21;pointer-events:none;max-width:250px;padding:10px 14px;
+    font-size:14px;line-height:1.35;opacity:0;transform:translate(-50%,-110%) rotate(-1deg);
+    transition:opacity .35s;
+  }
+  #bubble.show{opacity:1;}
+  #bubble::after{
+    content:"";position:absolute;left:30px;bottom:-14px;width:16px;height:16px;
+    background:var(--paper);border-right:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);
+    transform:rotate(45deg) skew(8deg,8deg);
+  }
+
+  /* ---------- project card overlay ---------- */
+  #cardWrap{
+    position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    background:rgba(43,43,51,.35);opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s;
+    padding:20px;
+  }
+  #cardWrap.show{opacity:1;visibility:visible;}
+  #card{
+    max-width:460px;width:100%;padding:26px 28px 22px;transform:rotate(-1deg);
+    position:relative;pointer-events:auto;max-height:84vh;overflow:auto;
+  }
+  #card h2{font-size:23px;margin-bottom:2px;}
+  #card .when{font-size:12.5px;color:var(--pencil);margin-bottom:8px;}
+  #card .tag{display:inline-block;font-size:12px;color:#fff;background:var(--blue);
+    padding:2px 10px;border-radius:30px 8px 30px 8px;transform:rotate(-2deg);margin:0 6px 12px 0;}
+  #card p{font-size:14.5px;line-height:1.5;margin-bottom:12px;}
+  #card ul{margin:0 0 12px 18px;font-size:14px;line-height:1.55;}
+  #card .made{font-size:12.5px;color:var(--pencil);}
+  #cardClose{
+    position:absolute;top:8px;right:8px;width:42px;height:42px;font-family:inherit;
+    font-size:20px;cursor:pointer;color:var(--red);transform:rotate(4deg);
+  }
+  #cardClose:hover{transform:rotate(-8deg) scale(1.1);}
+
+  #toast{
+    position:fixed;top:60px;left:50%;transform:translateX(-50%) rotate(-1.5deg) scale(.8);
+    z-index:45;padding:10px 22px;font-size:16px;opacity:0;transition:all .35s;color:var(--ink);
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) rotate(-1.5deg) scale(1);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+  @media (max-width:600px){
+    #bubble{max-width:185px;font-size:12.5px;}
+    #depthLine{max-width:calc(100% - 200px);}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<!-- splash -->
+<div id="splash">
+  <svg id="splashDoodle" viewBox="0 0 100 100" aria-hidden="true">
+    <g fill="none" stroke="#2b2b33" stroke-width="3" stroke-linecap="round">
+      <path d="M50 14 C 26 14, 14 32, 16 52 C 18 74, 36 88, 52 86 C 74 84, 88 66, 84 46 C 80 26, 66 13, 50 14 Z">
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="14s" repeatCount="indefinite"/>
+      </path>
+      <path d="M34 42 l-8 8 l8 8" stroke="#4a7fd4"/>
+      <path d="M66 42 l8 8 l-8 8" stroke="#4a7fd4"/>
+      <path d="M56 38 l-10 26" stroke="#e2574c"/>
+    </g>
+  </svg>
+  <h1>You found <em>Deepanshu's</em> sketchbook.</h1>
+  <div class="sub">frontend developer · Angular &amp; React · 2.5 yrs of shipping</div>
+  <p>Everything in here is still wet ink — dashboards, forms, charts and one food-ordering site. Scroll to wander deeper into my head.</p>
+  <button id="enterBtn" class="sketchy">step inside →</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="depthWrap">
+    <span id="depthLabel">depth into the dev brain:</span>
+    <div id="depthLine"></div>
+    <span id="pencil">✏️</span>
+  </div>
+  <div id="secretCount" class="sketchy">🔍 dev secrets: <span id="secretNum">0</span>/5</div>
+  <div id="hint" class="sketchy">scroll / drag / arrow keys to travel · click curious things</div>
+</div>
+
+<div id="bubble" class="sketchy"></div>
+
+<div id="toast" class="sketchy">you found a secret!</div>
+
+<!-- project card -->
+<div id="cardWrap">
+  <div id="card" class="sketchy" role="dialog" aria-modal="true">
+    <button id="cardClose" class="sketchy" aria-label="close">✕</button>
+    <h2 id="cardTitle"></h2>
+    <div class="when" id="cardWhen"></div>
+    <div id="cardTags"></div>
+    <p id="cardBody"></p>
+    <ul id="cardList"></ul>
+    <div class="made" id="cardMade"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+/* ============================================================
+   0. utils + wobbly-line canvas toolkit
+============================================================ */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rand = (a,b)=>a+Math.random()*(b-a);
+const lerp = (a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+const INK='#2b2b33', PAPER='#fdfbf4', RED='#e2574c', BLUE='#4a7fd4',
+      YELLOW='#f2c14e', GREEN='#5fa463', PENCIL='#9a9aa6';
+const HANDFONT = "'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE',cursive";
+
+function makeTexture(w,h,draw){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx=c.getContext('2d');
+  draw(ctx,w,h);
+  const t=new THREE.CanvasTexture(c);
+  t.anisotropy=4;
+  return t;
+}
+function wline(ctx,x1,y1,x2,y2,jit=2.2,segs=8){
+  ctx.beginPath(); ctx.moveTo(x1+rand(-jit,jit),y1+rand(-jit,jit));
+  for(let i=1;i<=segs;i++){
+    const t=i/segs;
+    ctx.lineTo(lerp(x1,x2,t)+rand(-jit,jit), lerp(y1,y2,t)+rand(-jit,jit));
+  }
+  ctx.stroke();
+}
+function wrect(ctx,x,y,w,h,jit=2.5){
+  wline(ctx,x,y,x+w,y,jit); wline(ctx,x+w,y,x+w,y+h,jit);
+  wline(ctx,x+w,y+h,x,y+h,jit); wline(ctx,x,y+h,x,y,jit);
+}
+function wcircle(ctx,cx,cy,r,jit=2.5){
+  ctx.beginPath();
+  const steps=22;
+  for(let i=0;i<=steps;i++){
+    const a=(i/steps)*Math.PI*2;
+    const rr=r+rand(-jit,jit);
+    const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.stroke();
+}
+function scribbleFill(ctx,x,y,w,h,color,gap=7){
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=2.4; ctx.globalAlpha=.75;
+  for(let i=-h;i<w;i+=gap){
+    wline(ctx,x+Math.max(0,i),y+Math.max(0,-i), x+Math.min(w,i+h), y+Math.min(h,h-(i+h-w>0?i+h-w:0)),1.4,3);
+  }
+  ctx.restore();
+}
+function handText(ctx,text,x,y,size,color=INK,align='center'){
+  ctx.save();
+  ctx.font=`${size}px ${HANDFONT}`;
+  ctx.fillStyle=color; ctx.textAlign=align; ctx.textBaseline='middle';
+  ctx.translate(x,y); ctx.rotate(rand(-.02,.02));
+  ctx.fillText(text,0,0);
+  ctx.restore();
+}
+
+/* ============================================================
+   1. renderer / scene / camera
+============================================================ */
+const canvas=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(PAPER);
+scene.fog=new THREE.Fog(PAPER,12,46);
+
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,120);
+camera.position.set(0,2.1,8);
+scene.add(new THREE.AmbientLight(0xffffff,1.0));
+
+/* ============================================================
+   2. the paper world
+============================================================ */
+const WORLD_END=-196;
+
+const floorTex=makeTexture(512,512,(ctx,w,h)=>{
+  ctx.fillStyle=PAPER; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(74,127,212,.25)'; ctx.lineWidth=2;
+  for(let y=32;y<h;y+=64) wline(ctx,0,y,w,y,1.2,10);
+  ctx.strokeStyle='rgba(226,87,76,.30)';
+  wline(ctx,70,0,70,h,1.2,10);
+});
+floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping;
+floorTex.repeat.set(8,44);
+const floor=new THREE.Mesh(
+  new THREE.PlaneGeometry(60,290),
+  new THREE.MeshBasicMaterial({map:floorTex})
+);
+floor.rotation.x=-Math.PI/2;
+floor.position.set(0,0,-92);
+scene.add(floor);
+
+// dashed pencil path
+{
+  const g=new THREE.Group();
+  for(let z=6;z>WORLD_END-8;z-=2.4){
+    const dash=new THREE.Mesh(
+      new THREE.PlaneGeometry(.5,1.1),
+      new THREE.MeshBasicMaterial({color:PENCIL,transparent:true,opacity:.55})
+    );
+    dash.rotation.x=-Math.PI/2;
+    dash.rotation.z=rand(-.15,.15);
+    dash.position.set(Math.sin(z*.12)*1.6, .012, z);
+    g.add(dash);
+  }
+  scene.add(g);
+}
+
+function doodlePlane(w,h,draw,opts={}){
+  const tex=makeTexture(opts.res||512, Math.round((opts.res||512)*h/w), (ctx,W,H)=>{
+    ctx.clearRect(0,0,W,H);
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    draw(ctx,W,H);
+  });
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(w,h),
+    new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide})
+  );
+}
+
+/* scenery: trees, clouds, floating code symbols */
+function addScenery(){
+  const treeDraw=(ctx,W,H)=>{
+    ctx.strokeStyle=INK; ctx.lineWidth=8;
+    wline(ctx,W/2,H,W/2,H*.55,4,5);
+    ctx.strokeStyle=GREEN; ctx.lineWidth=7;
+    wcircle(ctx,W/2,H*.34,W*.26,8);
+    scribbleFill(ctx,W*.28,H*.12,W*.46,H*.42,'rgba(95,164,99,.45)',12);
+  };
+  const cloudDraw=(ctx,W,H)=>{
+    ctx.strokeStyle=PENCIL; ctx.lineWidth=6;
+    wcircle(ctx,W*.32,H*.6,W*.18,6);
+    wcircle(ctx,W*.55,H*.45,W*.22,6);
+    wcircle(ctx,W*.74,H*.62,W*.15,6);
+    wline(ctx,W*.15,H*.78,W*.88,H*.78,4,6);
+  };
+  const symbols=['</>','{ }','( )','=>','&&','npm','git','TS'];
+  for(let i=0;i<30;i++){
+    const z=rand(-4,WORLD_END);
+    const side=Math.random()<.5?-1:1;
+    const x=side*rand(6,16);
+    const kind=Math.random();
+    let p;
+    if(kind<.4){ p=doodlePlane(rand(2.4,4.4),rand(3.4,5.6),treeDraw,{res:256}); p.position.y=p.geometry.parameters.height/2; }
+    else if(kind<.65){ p=doodlePlane(rand(3,5),rand(1.4,2.2),cloudDraw,{res:256}); p.position.y=rand(5,9); }
+    else {
+      const s=symbols[Math.floor(Math.random()*symbols.length)];
+      p=doodlePlane(1.6,1.1,(ctx,W,H)=>{
+        handText(ctx,s,W/2,H/2,H*.5,[BLUE,RED,GREEN,YELLOW][i%4]);
+      },{res:200});
+      p.position.y=rand(3,7);
+      p.userData.floaty=true;
+    }
+    p.position.x=x; p.position.z=z;
+    p.rotation.y=rand(-.25,.25);
+    scene.add(p);
+    if(p.userData.floaty) floaties.push(p);
+  }
+}
+const floaties=[];
+addScenery();
+
+/* ============================================================
+   3. stations
+============================================================ */
+const clickables=[];
+const boilers=[];
+
+function makeSign(w,h,draw,x,y,z,ry=0){
+  const p=doodlePlane(w,h,draw,{res:Math.round(220*w)});
+  p.position.set(x,y,z); p.rotation.y=ry;
+  scene.add(p);
+  boilers.push(p);
+  return p;
+}
+
+/* ---- CH 1: WHO LIVES HERE — about Deepanshu, z≈-32 ---- */
+makeSign(9.6,5.2,(ctx,W,H)=>{
+  ctx.strokeStyle=INK; ctx.lineWidth=6;
+  wrect(ctx,14,14,W-28,H-28,7);
+  handText(ctx,'chapter one:',W/2,H*.15,H*.1,PENCIL);
+  handText(ctx,'WHO LIVES HERE?',W/2,H*.3,H*.15,INK);
+  handText(ctx,"hi, i'm Deepanshu Chopra — frontend developer.",W/2,H*.5,H*.085,INK);
+  handText(ctx,'2.5 years turning coffee into enterprise web apps:',W/2,H*.63,H*.085,INK);
+  handText(ctx,'Angular (8–16), React, TypeScript, dashboards,',W/2,H*.75,H*.085,BLUE);
+  handText(ctx,'dynamic forms, charts & payment integrations.',W/2,H*.86,H*.085,BLUE);
+  ctx.strokeStyle=YELLOW; ctx.lineWidth=8;
+  wline(ctx,W*.22,H*.385,W*.78,H*.385,3,6);
+},0,3.5,-32);
+
+// doodle brain with fintech thoughts
+makeSign(4,3.4,(ctx,W,H)=>{
+  ctx.strokeStyle=RED; ctx.lineWidth=8;
+  wcircle(ctx,W*.42,H*.5,W*.27,10);
+  wcircle(ctx,W*.62,H*.42,W*.2,8);
+  ctx.lineWidth=5;
+  for(let i=0;i<5;i++) wline(ctx,W*rand(.25,.6),H*rand(.3,.7),W*rand(.35,.75),H*rand(.3,.7),6,4);
+  handText(ctx,'dev brain (artist impression)',W/2,H*.93,H*.08,PENCIL);
+},-5.4,2.2,-30,.4);
+
+const thoughts=['<form>','charts','chai ☕'];
+thoughts.forEach((t,i)=>{
+  makeSign(1.8,1.1,(ctx,W,H)=>{
+    ctx.strokeStyle=INK; ctx.lineWidth=5;
+    wcircle(ctx,W/2,H/2,W*.36,6);
+    handText(ctx,t,W/2,H/2,H*.24,BLUE);
+  },-5.4+ i*.9 - .9, 4.2 + i*.8, -30 - i*.4, .3);
+});
+
+// education milestone stone
+const eduSign=makeSign(3.4,2.6,(ctx,W,H)=>{
+  ctx.strokeStyle=INK; ctx.lineWidth=6;
+  wcircle(ctx,W/2,H*.62,W*.42,8);
+  handText(ctx,'B.Tech',W/2,H*.5,H*.16,INK);
+  handText(ctx,'ECE · JMIT',W/2,H*.66,H*.1,INK);
+  handText(ctx,'2018–2022',W/2,H*.8,H*.09,PENCIL);
+  handText(ctx,'(click me)',W/2,H*.18,H*.08,PENCIL);
+},5.2,1.4,-36,-.4);
+clickables.push({mesh:eduSign,onClick:()=>openCard({
+  title:'Education', when:'the origin story',
+  tags:['B.Tech','12th','10th'],
+  body:'Where the doodling started turning into engineering.',
+  list:[
+    'B.Tech, Electronics & Communication — Seth Jai Parkash Mukand Lal Institute of Engineering and Technology (JMIT), 2018–2022',
+    'Senior Secondary (12th) — Aaron Public School, Jind, 2017–2018',
+    'Higher Secondary (10th) — Delhi Public School, Jind, 2015–2016'
+  ],
+  made:'fun fact: ECE grad who fell in love with the frontend'
+})});
+
+/* ---- CH 2: THE WORK GALLERY, z≈-70 onward ---- */
+const PROJECTS=[
+  {
+    title:'TanServ — invoice-to-cash platform',
+    when:'Oct 2025 – present · Gurgaon',
+    tags:['Angular 16','React 19','Jenkins'],
+    body:'TanServ is a B2B accounts-receivable company helping large enterprises make cash flow predictable across the whole invoice-to-cash cycle. I build the frontend.',
+    list:[
+      'Dynamic forms with real-time validation (useState, useEffect)',
+      'Complex app state with hooks — useState & useReducer',
+      'Role-based access control across the app',
+      'Deployments via GitHub + Jenkins'
+    ],
+    made:'current desk · ink still wet',
+    color:BLUE,
+    icon:(ctx,W,H)=>{ ctx.strokeStyle=BLUE; ctx.lineWidth=6;
+      wrect(ctx,W*.3,H*.28,W*.4,H*.3,5);
+      wline(ctx,W*.36,H*.38,W*.64,H*.38,2,3);
+      wline(ctx,W*.36,H*.46,W*.58,H*.46,2,3);
+      ctx.strokeStyle=GREEN; wline(ctx,W*.62,H*.6,W*.7,H*.68,2,2); wline(ctx,W*.7,H*.68,W*.82,H*.5,2,2);}
+  },
+  {
+    title:'GE Vernova + DBT-Charts @ Genpact',
+    when:'Feb 2025 – Aug 2025 · Jaipur',
+    tags:['Angular 15','Angular 13','Angular 8','Azure DevOps'],
+    body:'Frontend work for GE Vernova, an energy equipment manufacturing services company, plus the DBT-Charts data-visualization project.',
+    list:[
+      'Built forms and integrated REST APIs',
+      'Data viz with ApexCharts and Chart.js',
+      'Template-driven forms in Angular',
+      'Project tracking on GitHub + Azure DevOps'
+    ],
+    made:'lesson learned: charts are just doodles with axes',
+    color:GREEN,
+    icon:(ctx,W,H)=>{ ctx.strokeStyle=GREEN; ctx.lineWidth=6;
+      wline(ctx,W*.3,H*.65,W*.3,H*.45,3,3);
+      wline(ctx,W*.45,H*.65,W*.45,H*.32,3,3);
+      wline(ctx,W*.6,H*.65,W*.6,H*.5,3,3);
+      ctx.strokeStyle=INK; wline(ctx,W*.24,H*.68,W*.72,H*.68,3,4); wline(ctx,W*.24,H*.68,W*.24,H*.26,3,4);}
+  },
+  {
+    title:'Osaic Hub @ Ameotech',
+    when:'Aug 2023 – Aug 2024 · Mohali',
+    tags:['Angular 16','PrimeNG','Azure DevOps'],
+    body:'Osaic provides support, resources and community for the future of wealth management and business development. I worked across its hub frontend.',
+    list:[
+      'Built the Dashboard and core components',
+      'API services + reactive forms',
+      'Email & password validation flows',
+      'PDF download feature, PrimeNG component library'
+    ],
+    made:'wealth management, but make it ✨reactive✨',
+    color:RED,
+    icon:(ctx,W,H)=>{ ctx.strokeStyle=RED; ctx.lineWidth=6;
+      wrect(ctx,W*.28,H*.28,W*.44,H*.34,5);
+      wline(ctx,W*.28,H*.4,W*.72,H*.4,2,4);
+      wrect(ctx,W*.33,H*.46,W*.14,H*.1,3);
+      wrect(ctx,W*.52,H*.46,W*.14,H*.1,3);}
+  },
+  {
+    title:'Food Arna — food ordering site',
+    when:'@ Ameotech',
+    tags:['Angular','RazorPay','MetaMask','GitLab','Jira'],
+    body:'A food-ordering website where I got to wire up real money and slightly unreal money.',
+    list:[
+      'RazorPay payment gateway integration',
+      'MetaMask wallet implementation',
+      'Forms + FormArray for dynamic order items',
+      'Builds deployed via Putty, tracked in Jira'
+    ],
+    made:'yes, a food site with a crypto wallet. it was a time.',
+    color:YELLOW,
+    icon:(ctx,W,H)=>{ ctx.strokeStyle='#caa23a'; ctx.lineWidth=6;
+      wcircle(ctx,W*.5,H*.46,W*.16,5);
+      wline(ctx,W*.34,H*.62,W*.66,H*.62,3,3);
+      wline(ctx,W*.42,H*.3,W*.44,H*.22,2,2);
+      wline(ctx,W*.56,H*.3,W*.58,H*.2,2,2);}
+  },
+  {
+    title:'Ecom Website — personal project',
+    when:'built after hours',
+    tags:['Angular','JSON Server','Lazy loading'],
+    body:'A personal e-commerce build to sharpen the fundamentals end-to-end.',
+    list:[
+      'Created a mock API using JSON Server',
+      'Implemented and consumed the API in the app',
+      'Reactive forms for checkout',
+      'Lazy loading for snappy routes'
+    ],
+    made:'no customers were harmed in the making of this shop',
+    color:BLUE,
+    icon:(ctx,W,H)=>{ ctx.strokeStyle=BLUE; ctx.lineWidth=6;
+      wline(ctx,W*.3,H*.34,W*.66,H*.34,2,3);
+      wline(ctx,W*.32,H*.34,W*.38,H*.56,2,3);
+      wline(ctx,W*.66,H*.34,W*.6,H*.56,2,3);
+      wline(ctx,W*.38,H*.56,W*.6,H*.56,2,3);
+      wcircle(ctx,W*.42,H*.66,W*.035,2);
+      wcircle(ctx,W*.56,H*.66,W*.035,2);}
+  },
+];
+
+makeSign(8.6,2.2,(ctx,W,H)=>{
+  handText(ctx,'chapter two:',W/2,H*.25,H*.2,PENCIL);
+  handText(ctx,'THINGS I SHIPPED ON PURPOSE',W/2,H*.62,H*.28,INK);
+  ctx.strokeStyle=RED; ctx.lineWidth=7;
+  wline(ctx,W*.1,H*.86,W*.9,H*.86,4,8);
+},0,4.6,-58);
+
+PROJECTS.forEach((p,i)=>{
+  const side=i%2===0?-1:1;
+  const z=-64 - i*6.5;
+  const frameMesh=doodlePlane(3.3,2.7,(ctx,W,H)=>{
+    ctx.strokeStyle=INK; ctx.lineWidth=9;
+    wrect(ctx,16,16,W-32,H-32,8);
+    ctx.lineWidth=5; wrect(ctx,34,34,W-68,H-68,5);
+    p.icon(ctx,W,H);
+    handText(ctx,p.title.split('—')[0].split('@')[0].trim(),W/2,H*.8,H*.085,INK);
+    handText(ctx,'(click to open)',W/2,H*.89,H*.06,PENCIL);
+    ctx.strokeStyle=PENCIL; ctx.lineWidth=4;
+    wline(ctx,W/2,4,W*.3,20,2,3); wline(ctx,W/2,4,W*.7,20,2,3);
+  },{res:460});
+  frameMesh.position.set(side*4.6, 2.6, z);
+  frameMesh.rotation.y=side*-.45;
+  frameMesh.userData.baseRot=frameMesh.rotation.y;
+  scene.add(frameMesh); boilers.push(frameMesh);
+  clickables.push({mesh:frameMesh,onClick:()=>openCard(p)});
+});
+
+/* ---- CH 3: THE TOOL GARDEN (skills), z≈-110 ---- */
+makeSign(8.4,2.2,(ctx,W,H)=>{
+  handText(ctx,'chapter three:',W/2,H*.25,H*.2,PENCIL);
+  handText(ctx,'THE TOOL GARDEN',W/2,H*.62,H*.32,INK);
+  ctx.strokeStyle=BLUE; ctx.lineWidth=7;
+  wline(ctx,W*.2,H*.86,W*.8,H*.86,4,8);
+},0,4.4,-104);
+
+makeSign(6.2,2.4,(ctx,W,H)=>{
+  handText(ctx,'skills, planted & watered daily.',W/2,H*.3,H*.13,INK);
+  handText(ctx,'click one to make it grow (boing).',W/2,H*.55,H*.13,INK);
+  handText(ctx,'soft skills hiding in the soil too.',W/2,H*.8,H*.1,PENCIL);
+},0,2.3,-108);
+
+const SKILLS=[
+  ['Angular',RED],['ReactJS',BLUE],['TypeScript',BLUE],['JavaScript',YELLOW],
+  ['HTML',RED],['CSS',BLUE],['PrimeNG',GREEN],['Material',GREEN],
+  ['Bootstrap','#7952b3'],['GitHub',INK],['Postman','#e2574c']
+];
+SKILLS.forEach((s,i)=>{
+  const ball=doodlePlane(1.25,1.25,(ctx,W,H)=>{
+    ctx.strokeStyle=s[1]; ctx.lineWidth=6;
+    wcircle(ctx,W/2,H/2,W*.36,5);
+    handText(ctx,s[0],W/2,H/2,H*.17,s[1]);
+  },{res:190});
+  const col=i%4, row=Math.floor(i/4);
+  ball.position.set(-3.6+col*2.4 + (row%2)*.9, .9+row*.15, -112-row*3);
+  ball.userData.vy=0; ball.userData.baseY=ball.position.y;
+  scene.add(ball);
+  clickables.push({mesh:ball,onClick:()=>{ball.userData.vy=.16; say(pickRandom(['boing!','*'+s[0]+' intensifies*','watered ✓','+1 skill point']),1300);}});
+  boilers.push(ball);
+});
+
+// soft-skill flowers
+const SOFT=['problem solving','time mgmt','organized','self-motivated'];
+SOFT.forEach((s,i)=>{
+  makeSign(1.9,2.3,(ctx,W,H)=>{
+    ctx.strokeStyle=GREEN; ctx.lineWidth=6;
+    wline(ctx,W/2,H,W/2,H*.5,5,4);
+    ctx.strokeStyle=RED; ctx.lineWidth=5;
+    for(let k=0;k<6;k++){
+      const a=k/6*Math.PI*2;
+      wcircle(ctx,W/2+Math.cos(a)*W*.12,H*.38+Math.sin(a)*W*.12,W*.09,4);
+    }
+    ctx.strokeStyle=YELLOW; wcircle(ctx,W/2,H*.38,W*.07,3);
+    handText(ctx,s,W/2,H*.12,H*.085,INK);
+  }, (i<2?-1:1)*(6.5+(i%2)*1.6), 1.15, -110-(i%2)*4, (i<2?1:-1)*.3);
+});
+
+/* ---- CH 4: SEND A PAPER PIGEON (contact), z≈-150 ---- */
+makeSign(8.6,2.2,(ctx,W,H)=>{
+  handText(ctx,'final chapter:',W/2,H*.25,H*.2,PENCIL);
+  handText(ctx,'SEND A PAPER PIGEON',W/2,H*.62,H*.3,INK);
+  ctx.strokeStyle=GREEN; ctx.lineWidth=7;
+  wline(ctx,W*.15,H*.86,W*.85,H*.86,4,8);
+},0,4.4,-146);
+
+const mailbox=makeSign(2.6,3.4,(ctx,W,H)=>{
+  ctx.strokeStyle=INK; ctx.lineWidth=7;
+  wrect(ctx,W*.2,H*.18,W*.6,H*.34,6);
+  wline(ctx,W*.5,H*.52,W*.5,H*.9,4,4);
+  ctx.strokeStyle=RED; ctx.lineWidth=6;
+  wline(ctx,W*.66,H*.18,W*.66,H*.04,3,3);
+  wrect(ctx,W*.66,H*.02,W*.14,H*.1,3);
+  handText(ctx,'mail!',W*.5,H*.34,H*.11,INK);
+  handText(ctx,'(click)',W*.5,H*.62,H*.07,PENCIL);
+},0,1.8,-153);
+clickables.push({mesh:mailbox,onClick:()=>openCard({
+  title:'Say hello to Deepanshu',
+  when:'response time: pretty quick, honestly',
+  tags:['email','phone'],
+  body:'Roles, freelance frontend work, collabs, or just to argue about Angular vs React — all pigeons welcome.',
+  list:[
+    '✉️ deepanshusinghchopra@gmail.com',
+    '📞 +91 70151 82561'
+  ],
+  made:'based in India · currently building at TanServ, Gurgaon'
+})});
+
+makeSign(6,3.2,(ctx,W,H)=>{
+  // big email written on a paper plane banner
+  ctx.strokeStyle=BLUE; ctx.lineWidth=6;
+  wline(ctx,W*.08,H*.5,W*.3,H*.36,4,4);
+  wline(ctx,W*.3,H*.36,W*.26,H*.6,3,3);
+  wline(ctx,W*.26,H*.6,W*.08,H*.5,3,3);
+  ctx.strokeStyle=INK; ctx.lineWidth=4;
+  wrect(ctx,W*.32,H*.3,W*.62,H*.42,5);
+  handText(ctx,'deepanshusinghchopra',W*.63,H*.44,H*.085,INK);
+  handText(ctx,'@gmail.com',W*.63,H*.58,H*.085,INK);
+},-1.2,4.1,-156,.15);
+
+makeSign(5.5,2.4,(ctx,W,H)=>{
+  handText(ctx,'thanks for walking',W/2,H*.3,H*.16,INK);
+  handText(ctx,'around in my head ♥',W/2,H*.55,H*.16,INK);
+  handText(ctx,'— Deepanshu (mind the wet ink on your way out)',W/2,H*.83,H*.09,PENCIL);
+},0,2.4,-168);
+
+/* ============================================================
+   4. five hidden dev secrets
+============================================================ */
+const SECRETS=[
+  {x:-9,y:.7,z:-14, name:'the missing semicolon', draw:(ctx,W,H)=>{ctx.strokeStyle=RED;ctx.lineWidth=8;wcircle(ctx,W*.5,H*.32,W*.07,3);wline(ctx,W*.52,H*.5,W*.42,H*.78,3,3);}},
+  {x:10,y:5.6,z:-48, name:'a wild production bug', draw:(ctx,W,H)=>{ctx.strokeStyle=INK;ctx.lineWidth=6;wcircle(ctx,W/2,H*.5,W*.18,4);wline(ctx,W*.32,H*.42,W*.2,H*.3,2,2);wline(ctx,W*.68,H*.42,W*.8,H*.3,2,2);wline(ctx,W*.32,H*.58,W*.2,H*.66,2,2);wline(ctx,W*.68,H*.58,W*.8,H*.66,2,2);wline(ctx,W*.5,H*.32,W*.46,H*.18,2,2);wline(ctx,W*.5,H*.32,W*.58,H*.18,2,2);}},
+  {x:-8.5,y:.6,z:-90, name:'the debugging duck', draw:(ctx,W,H)=>{ctx.strokeStyle='#caa23a';ctx.lineWidth=6;wcircle(ctx,W*.45,H*.55,W*.2,4);wcircle(ctx,W*.62,H*.36,W*.11,3);ctx.strokeStyle=RED;wline(ctx,W*.72,H*.36,W*.84,H*.4,2,2);ctx.fillStyle=INK;ctx.beginPath();ctx.arc(W*.64,H*.32,3,0,7);ctx.fill();}},
+  {x:9,y:.8,z:-126, name:'emergency chai', draw:(ctx,W,H)=>{ctx.strokeStyle='#8a6240';ctx.lineWidth=6;wrect(ctx,W*.3,H*.4,W*.4,H*.35,4);wline(ctx,W*.7,H*.48,W*.84,H*.55,2,2);wline(ctx,W*.4,H*.34,W*.42,H*.2,2,2);wline(ctx,W*.56,H*.34,W*.6,H*.18,2,2);}},
+  {x:0,y:6.8,z:-176, name:'the merge-conflict star', draw:(ctx,W,H)=>{ctx.strokeStyle=YELLOW;ctx.lineWidth=6;
+      for(let i=0;i<5;i++){const a=-Math.PI/2+i*(Math.PI*2/5);const a2=a+Math.PI*2/5/2;
+        wline(ctx,W/2+Math.cos(a)*W*.3,H/2+Math.sin(a)*W*.3,W/2+Math.cos(a2)*W*.12,H/2+Math.sin(a2)*W*.12,2,2);
+        wline(ctx,W/2+Math.cos(a2)*W*.12,H/2+Math.sin(a2)*W*.12,W/2+Math.cos(a+Math.PI*2/5)*W*.3,H/2+Math.sin(a+Math.PI*2/5)*W*.3,2,2);} }},
+];
+let secretsFound=0;
+SECRETS.forEach(s=>{
+  const m=doodlePlane(.9,.9,s.draw,{res:140});
+  m.position.set(s.x,s.y,s.z);
+  scene.add(m); boilers.push(m);
+  clickables.push({mesh:m,onClick:()=>{
+    if(m.userData.found) return;
+    m.userData.found=true;
+    m.userData.spin=true;
+    secretsFound++;
+    document.getElementById('secretNum').textContent=secretsFound;
+    const sc=document.getElementById('secretCount');
+    sc.classList.add('pop'); setTimeout(()=>sc.classList.remove('pop'),300);
+    showToast(`you found ${s.name}! (${secretsFound}/5)`);
+    if(secretsFound===5) setTimeout(()=>say("ALL FIVE?! okay, you're hired as my QA now.",4200),900);
+  }});
+});
+
+/* ============================================================
+   5. Pixel — the guide character
+============================================================ */
+function drawPixel(ctx,W,H,frame,blink){
+  ctx.clearRect(0,0,W,H);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  const j=2+frame*1.3;
+  ctx.strokeStyle=INK; ctx.lineWidth=8;
+  // body = a doodly cursor-blob
+  wcircle(ctx,W*.5,H*.42,W*.27,j+2);
+  scribbleFill(ctx,W*.3,H*.24,W*.4,H*.36,'rgba(74,127,212,.35)',11);
+  // legs + feet
+  wline(ctx,W*.42,H*.66,W*.4,H*.84,j,3);
+  wline(ctx,W*.58,H*.66,W*.6,H*.84,j,3);
+  wline(ctx,W*.4,H*.84,W*.32,H*.84,j,2);
+  wline(ctx,W*.6,H*.84,W*.68,H*.84,j,2);
+  // antenna with a tiny </> flag
+  wline(ctx,W*.5,H*.16,W*.5,H*.04,j,2);
+  ctx.save(); ctx.font=`${W*.11}px ${HANDFONT}`; ctx.fillStyle=RED;
+  ctx.textAlign='left'; ctx.fillText('</>',W*.53,H*.07); ctx.restore();
+  // face
+  ctx.fillStyle=INK;
+  if(blink){
+    ctx.strokeStyle=INK; ctx.lineWidth=5;
+    wline(ctx,W*.38,H*.4,W*.46,H*.4,1.5,2);
+    wline(ctx,W*.54,H*.4,W*.62,H*.4,1.5,2);
+  } else {
+    ctx.beginPath(); ctx.arc(W*.42,H*.4,W*.035,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(W*.58,H*.4,W*.035,0,7); ctx.fill();
+  }
+  ctx.strokeStyle=INK; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.arc(W*.5,H*.49,W*.07,0.15,Math.PI-0.15); ctx.stroke();
+}
+const pixFrames=[];
+for(let f=0;f<3;f++){
+  pixFrames.push(makeTexture(256,256,(ctx,W,H)=>drawPixel(ctx,W,H,f,false)));
+}
+const pixBlink=makeTexture(256,256,(ctx,W,H)=>drawPixel(ctx,W,H,0,true));
+const pix=new THREE.Mesh(
+  new THREE.PlaneGeometry(1.5,1.5),
+  new THREE.MeshBasicMaterial({map:pixFrames[0],transparent:true})
+);
+pix.position.set(1.4,1,4);
+scene.add(pix);
+let pixHop=0;
+clickables.push({mesh:pix,onClick:()=>{
+  pixHop=.22;
+  say(pickRandom([
+    "hey! i'm Pixel — Deepanshu doodled me in a standup.",
+    "i'm a div with dreams.",
+    "fun fact: Deepanshu has shipped on Angular 8 THROUGH 16. respect the range.",
+    "onward! more shipped things ahead.",
+    "ask him about the food site with a crypto wallet. wild times."
+  ]),3000);
+}});
+function pickRandom(a){return a[Math.floor(Math.random()*a.length)];}
+
+/* ============================================================
+   6. travel
+============================================================ */
+let targetZ=8, curZ=8;
+let started=false;
+
+function addTravel(d){
+  if(!started) return;
+  targetZ=clamp(targetZ - d, WORLD_END, 8);
+  document.getElementById('hint').classList.add('gone');
+}
+addEventListener('wheel',e=>addTravel(e.deltaY*.012),{passive:true});
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowUp'||e.key==='w') addTravel(2.2);
+  if(e.key==='ArrowDown'||e.key==='s') addTravel(-2.2);
+});
+let touchY=null;
+addEventListener('touchstart',e=>{touchY=e.touches[0].clientY;},{passive:true});
+addEventListener('touchmove',e=>{
+  if(touchY!==null){ addTravel((touchY-e.touches[0].clientY)*.045); touchY=e.touches[0].clientY; }
+},{passive:true});
+
+let mx=0,my=0;
+addEventListener('pointermove',e=>{
+  mx=(e.clientX/innerWidth-0.5);
+  my=(e.clientY/innerHeight-0.5);
+});
+
+/* ============================================================
+   7. clicking (raycast)
+============================================================ */
+const ray=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+addEventListener('pointerdown',e=>{
+  if(!started || document.getElementById('cardWrap').classList.contains('show')) return;
+  pointer.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1);
+  ray.setFromCamera(pointer,camera);
+  const hits=ray.intersectObjects(clickables.map(c=>c.mesh));
+  if(hits.length){
+    const hit=clickables.find(c=>c.mesh===hits[0].object);
+    if(hit) hit.onClick();
+  }
+});
+
+/* ============================================================
+   8. overlays
+============================================================ */
+const bubble=document.getElementById('bubble');
+let bubbleTimer=null;
+function say(text,ms=3200){
+  bubble.textContent=text;
+  bubble.classList.add('show');
+  clearTimeout(bubbleTimer);
+  bubbleTimer=setTimeout(()=>bubble.classList.remove('show'),ms);
+}
+function openCard(p){
+  document.getElementById('cardTitle').textContent=p.title;
+  document.getElementById('cardWhen').textContent=p.when||'';
+  const tagWrap=document.getElementById('cardTags');
+  tagWrap.innerHTML='';
+  (p.tags||[]).forEach(t=>{
+    const s=document.createElement('span'); s.className='tag'; s.textContent=t;
+    tagWrap.appendChild(s);
+  });
+  document.getElementById('cardBody').textContent=p.body||'';
+  const list=document.getElementById('cardList');
+  list.innerHTML='';
+  (p.list||[]).forEach(li=>{
+    const el=document.createElement('li'); el.textContent=li; list.appendChild(el);
+  });
+  document.getElementById('cardMade').textContent=p.made||'';
+  document.getElementById('cardWrap').classList.add('show');
+}
+document.getElementById('cardClose').onclick=()=>document.getElementById('cardWrap').classList.remove('show');
+document.getElementById('cardWrap').addEventListener('pointerdown',e=>{
+  if(e.target.id==='cardWrap') document.getElementById('cardWrap').classList.remove('show');
+});
+addEventListener('keydown',e=>{ if(e.key==='Escape') document.getElementById('cardWrap').classList.remove('show'); });
+
+let toastTimer=null;
+function showToast(t){
+  const el=document.getElementById('toast');
+  el.textContent='✨ '+t;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+const NARRATION=[
+  {z:2,   text:"welcome to Deepanshu's head! follow the pencil line — i'll come too.", done:false},
+  {z:-26, text:"chapter one: the human himself. 2.5 years of frontend, fueled by chai.", done:false},
+  {z:-56, text:"the gallery! TanServ, Genpact, Ameotech — click any frame to peek inside.", done:false},
+  {z:-100,text:"the tool garden. every skill here is click-to-water. very scientific.", done:false},
+  {z:-142,text:"last stop — the mailbox. click it to grab his email & number.", done:false},
+  {z:-166,text:"that's the whole brain! ...unless you missed a secret. check the counter ↗", done:false},
+];
+
+/* ============================================================
+   9. start + main loop
+============================================================ */
+document.getElementById('enterBtn').addEventListener('click',()=>{
+  document.getElementById('splash').classList.add('gone');
+  started=true;
+});
+
+let t=0, frame=0, lastBoil=0, blinkUntil=0, nextBlink=2;
+const clock=new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05);
+  t+=dt;
+
+  curZ=lerp(curZ,targetZ, REDUCED? .2 : .065);
+  const pathX=Math.sin(curZ*.12)*1.6*.5;
+  camera.position.z=curZ;
+  camera.position.x=lerp(camera.position.x, pathX + mx*1.4, .06);
+  camera.position.y=lerp(camera.position.y, 2.1 - my*.7 + (REDUCED?0:Math.sin(t*1.7)*.04), .08);
+  camera.lookAt(camera.position.x*.6, 1.9 - my*1.2, curZ-8);
+
+  // Pixel follows ahead
+  const pixTargetZ=curZ-4.2;
+  pix.position.z=lerp(pix.position.z,pixTargetZ,.045);
+  pix.position.x=lerp(pix.position.x, pathX+1.5+Math.sin(t*.6)*.3, .03);
+  pixHop=Math.max(0,pixHop-dt*.5);
+  pix.position.y=1 + (REDUCED?0:Math.abs(Math.sin(t*3))*.12) + pixHop*4*pixHop;
+  pix.quaternion.copy(camera.quaternion);
+
+  if(!REDUCED && t-lastBoil>.14){
+    lastBoil=t; frame=(frame+1)%3;
+    pix.material.map = (t<blinkUntil) ? pixBlink : pixFrames[frame];
+  }
+  if(t>nextBlink){ blinkUntil=t+.18; nextBlink=t+rand(2.5,5); }
+
+  if(!REDUCED){
+    boilers.forEach((b,i)=>{
+      b.rotation.z=Math.sin(t*2+i*1.7)*.012;
+      if(b.userData.baseRot!==undefined) b.rotation.y=b.userData.baseRot+Math.sin(t*1.3+i)*.02;
+      if(b.userData.spin) b.rotation.z=t*4+i;
+      if(b.userData.vy!==undefined){
+        b.userData.vy-=dt*.5;
+        b.position.y+=b.userData.vy;
+        if(b.position.y<b.userData.baseY){ b.position.y=b.userData.baseY; b.userData.vy=0; }
+      }
+    });
+    floaties.forEach((f,i)=>{ f.position.y+=Math.sin(t*1.2+i*2)*.0035; });
+  }
+
+  if(bubble.classList.contains('show')){
+    const v=pix.position.clone(); v.y+=1.1;
+    v.project(camera);
+    if(v.z<1){
+      bubble.style.left=((v.x*.5+.5)*innerWidth)+'px';
+      bubble.style.top=((-v.y*.5+.5)*innerHeight)+'px';
+    }
+  }
+
+  if(started) for(const n of NARRATION){
+    if(!n.done && curZ<n.z){ n.done=true; say(n.text,4400); break; }
+  }
+
+  const prog=clamp((8-curZ)/(8-WORLD_END),0,1);
+  document.getElementById('depthLine').style.width=(prog*(innerWidth>600?60:46))+'%';
+
+  renderer.render(scene,camera);
+}
+animate();
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>
